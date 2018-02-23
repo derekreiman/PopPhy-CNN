@@ -175,7 +175,7 @@ if __name__ == "__main__":
 				if not os.path.exists(dir):
 					os.makedirs(dir)
 				
-				dir = dat_dir + "/data_sets/raw_noscale/CV_" + str(set) + "/" + str(count)
+				dir = dat_dir + "/data_sets//CV_" + str(set) + "/" + str(count)
 				if not os.path.exists(dir):
 					os.makedirs(dir)
 				

@@ -1,7 +1,7 @@
 import cPickle
 import os
 
-def load_data_from_file(dset, norm, method, split):
+def load_data_from_file(dset, method, split):
     
     dir = "../data/" + dset + "/data_sets/" + method + "/" + split
     

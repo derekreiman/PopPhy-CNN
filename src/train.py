@@ -1,5 +1,6 @@
 import sys
 import network
+import argparse
 from network import Network
 from network import ConvPoolLayer, FullyConnectedLayer, SoftmaxLayer
 from network import ReLU
@@ -45,18 +46,8 @@ for set in range(0, args.sets):
         dir = "../data/" + dset + "/data_sets/"  + "CV_" + str(set) + "/" + str(cv)
         rows = train[0].container.data.shape[1]
         cols = train[0].container.data.shape[2]
-        L1_height = int(floor((rows-k1_height+1)/2.0))
-        L1_width = int(floor((cols-k1_width+1)/2.0))
-        L2_height = int(floor((L1_height-k2_height+1)/1))
-        L2_width = int(floor((L1_width-k2_width+1)/2.0))
-        L3_height = int(floor((L2_height-k3_height+1)))
-        L3_width = int(floor((L2_width-k3_width+1)/2.0))
 
-	print(rows)
-	print(cols)        
-
-		#Dataset specific models
-		
+	#Dataset specific models		
         if dset == "T2D":
                
             net = Network([
