@@ -125,6 +125,6 @@ f.write(str(net_best_f_score) + "\n")
        
 for i in range(0,args.sets * args.splits):
     f.write("\nPredictions for " + str(i) + "\n")
-    f.write("\n" + str(np.array(net_best_predictions[i]).reshape(1,-1)) + "\n")
-    f.write("\n" + str(np.array(net_best_probs[i]).reshape(1, -1)) + "\n")
+    f.write("\n" + str(net_best_predictions[i]) + "\n")
+    f.write("\n" + str(net_best_probs[i]) + "\n")
 f.close()
