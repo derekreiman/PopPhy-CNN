@@ -41,12 +41,12 @@ for f in features:
 	fi[f]=0
 
 for set in range(0,args.sets):
-    for cv in range(0,args.splits):
-        dir = "../data/" + str(data) + "/data_sets/" + "/CV_" + str(set) + "/" + str(cv)
-        x = np.loadtxt(dir+'/benchmark_train_data.csv', delimiter=',')
-        y = np.loadtxt(dir+'/benchmark_train_labels.csv', delimiter=',')
-        tx = np.loadtxt(dir+'/benchmark_test_data.csv', delimiter=',')
-        ty = np.loadtxt(dir+'/benchmark_test_labels.csv', delimiter=',')
+	for cv in range(0,args.splits):
+		dir = "../data/" + str(data) + "/data_sets/" + "/CV_" + str(set) + "/" + str(cv)
+		x = np.loadtxt(dir+'/benchmark_train_data.csv', delimiter=',')
+		y = np.loadtxt(dir+'/benchmark_train_labels.csv', delimiter=',')
+		tx = np.loadtxt(dir+'/benchmark_test_data.csv', delimiter=',')
+		ty = np.loadtxt(dir+'/benchmark_test_labels.csv', delimiter=',')
 		
 		if method=="RF":
 			clf = RandomForestClassifier(n_estimators=500, max_depth=None, min_samples_split=2, n_jobs=-1)
@@ -69,13 +69,13 @@ for set in range(0,args.sets):
 			prob = [row for row in clf.predict(tx)]
 			pred = [int(i > 0.5) for i in prob]
 			
-        accuracy.append(clf.score(tx,ty))
-        roc_auc.append(roc_auc_score(ty, prob))
-        precision.append(precision_score(ty, pred, average='weighted'))
-        recall.append(recall_score(ty, pred, average='weighted'))
-        f_score.append(f1_score(ty, pred, average='weighted'))
-        pred.append(pred)
-        prob.append(prob)
+		accuracy.append(clf.score(tx,ty))
+		roc_auc.append(roc_auc_score(ty, prob))
+		precision.append(precision_score(ty, pred, average='weighted'))
+		recall.append(recall_score(ty, pred, average='weighted'))
+		f_score.append(f1_score(ty, pred, average='weighted'))
+		pred.append(pred)
+		prob.append(prob)
 		
 		if method == "RF":
 			i=0
@@ -120,8 +120,8 @@ f.write("\nMean F-score: " + str(np.mean(f_score)) + " (" + str(np.std(f_score))
 f.write(str(rf_f_score) + "\n")
 
 for i in range(0,total):
-    f.write("\nPredictions for " + str(i) + "\n")
-    f.write("\n" + str(pred[i]) + "\n")
-    f.write("\n" + str(prob[i]) + "\n")
+	f.write("\nPredictions for " + str(i) + "\n")
+	f.write("\n" + str(pred[i]) + "\n")
+	f.write("\n" + str(prob[i]) + "\n")
 f.close()
   
