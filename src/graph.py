@@ -159,7 +159,6 @@ class Graph:
             if w > width:
                 width = w        
         self.width = width      
-        num_c = 0
 	while layer >= 0:
             for n in self.get_nodes(layer):
                 if len(n.get_children()) > 0:
@@ -170,18 +169,13 @@ class Graph:
                         if str(n.get_id()).replace("_"," ") == str(lab[i]):
 			    tracker[str(lab[i])] = True
                             s = s + x[i]
-			    num_c += 1
                     n.set_abundance(s)
                 else:
                     for i in range(0, len(lab)):
                         if str(n.get_id()).replace("_", " ") == str(lab[i]):
 			    tracker[str(lab[i])] = True
                             n.set_abundance(x[i])
-			    num_c += 1
 	    layer = layer - 1   
-        print("Features: " + str(len(lab)))
-	print("Found: " + str(num_c))    
-    
     def get_map(self):
         m = np.zeros(((self.layers), self.width))
         current = self.get_nodes(0)
