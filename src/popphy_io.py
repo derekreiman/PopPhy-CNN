@@ -3,7 +3,7 @@ import os
 
 def load_data_from_file(dset, norm, method, split):
     
-    dir = "../data/" + dset + "/data_sets/" + norm + "/" + method + "/" + split
+    dir = "../data/" + dset + "/data_sets/" + method + "/" + split
     
     f = open(dir+"/training.save", 'rb')
     train = cPickle.load(f)

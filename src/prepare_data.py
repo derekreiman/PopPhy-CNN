@@ -19,7 +19,7 @@ import theano.tensor as T
 
 
 parser = argparse.ArgumentParser(description="Prepare Data")
-parser.add_argument("-m", "--method", default="CV", 	help="CV or Holdout method.")
+parser.add_argument("-m", "--method", default="CV", 	help="CV or Holdout method.") #Holdout method TBI
 parser.add_argument("-d", "--dataset", default="Cirrhosis", 	help="Name of dataset in data folder.")
 parser.add_argument("-n", "--splits", default=10, type=int, help="Number of cross validated splits.")
 parser.add_argument("-s", "--sets", default=10, type=int, help="Number of datasets to generate")
@@ -84,7 +84,6 @@ if __name__ == "__main__":
 				
 		num_samples = my_x.shape[0]
 		num_features = len(my_x[0])
-		print("NF", num_features)
 		#Get the set of classes	
 		classes = list(unique(my_y))
 		num_classes = len(classes)

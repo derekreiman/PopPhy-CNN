@@ -11,18 +11,19 @@ from save_network import save_network
 import numpy as np
 from theano.tensor import tanh
 
-k1_width = 7
-k1_height = 7
-k2_width = 7
-k2_height = 7
-k3_width = 3
-k3_height = 3
 
-num_epochs = int(sys.argv[4])
+parser = argparse.ArgumentParser(description="Prepare Data")
+parser.add_argument("-e", "--epochs", default=400, 	type=int, help="Number of epochs.")
+parser.add_argument("-b", "--batch_size", default=1, type=int, 	help="Batch Size")
+parser.add_argument("-n", "--splits", default=10, type=int, help="Number of cross validated splits.")
+parser.add_argument("-s", "--sets", default=10, type=int, help="Number of datasets")
+parser.add_argument("-d", "--dataset", default="Cirrhosis", 	help="Name of dataset in data folder.")
 
-dset = sys.argv[1]
-norm = sys.argv[2]
-mini_batch_size = int(sys.argv[3])
+args = parser.parse_args()
+
+dset = args.dataset
+num_epochs = args.epochs
+mini_batch_size = args.batch_size
 
 net_best_accuracy = []
 net_best_roc = []
@@ -32,17 +33,17 @@ net_best_f_score = []
 net_best_predictions = []
 net_best_probs = []
 
-for set in range(0, 10):
-    for cv in range(0,10):
+for set in range(0, args.sets):
+    for cv in range(0,args.splits):
 	print("\nRun " + str(cv) + " of set " + str(set) + ".\n")
-        train, test, validation = load_data_from_file(dset, norm, "CV_" + str(set), str(cv))
+        train, test, validation = load_data_from_file(dset, "CV_" + str(set), str(cv))
          
         train_lab = train[1].eval()
         c_prob = [None] * len(np.unique(train_lab))
         for l in np.unique(train_lab):
             c_prob[l] = float( float(len(train_lab))/ (np.sum(train_lab == l)))
             
-        dir = "../data/" + dset + "/data_sets/" + norm + "/CV_" + str(set) + "/" + str(cv)
+        dir = "../data/" + dset + "/data_sets/"  + "CV_" + str(set) + "/" + str(cv)
         rows = train[0].container.data.shape[1]
         cols = train[0].container.data.shape[2]
         L1_height = int(floor((rows-k1_height+1)/2.0))
@@ -55,8 +56,9 @@ for set in range(0, 10):
 	print(rows)
 	print(cols)        
 
+		#Dataset specific models
+		
         if dset == "T2D":
-            #mini_batch_size = 4
                
             net = Network([
                 ConvPoolLayer(activation_fn=ReLU, image_shape=(mini_batch_size, 1, rows, cols), 
@@ -73,7 +75,6 @@ for set in range(0, 10):
                 SoftmaxLayer(n_in=1024, n_out=2, p_dropout=0.5)], mini_batch_size, c_prob)
             
         if dset == "Obesity":
-            #mini_batch_size = 4
                 
             net = Network([
                 ConvPoolLayer(activation_fn=ReLU, image_shape=(mini_batch_size, 1, rows, cols), 
@@ -90,7 +91,6 @@ for set in range(0, 10):
                 SoftmaxLayer(n_in=1024, n_out=2, p_dropout=0.5)], mini_batch_size, c_prob)
                  
         if dset == "Cirrhosis":
-            #mini_batch_size = 4
                 
             net = Network([
                 ConvPoolLayer(activation_fn=ReLU, image_shape=(mini_batch_size, 1, rows, cols), 
@@ -118,7 +118,9 @@ for set in range(0, 10):
         net_best_probs.append(net.best_prob)
         save_network(net.best_state, dir)
         
-dir = "../data/" + dset + "/data_sets/" + norm    
+#Record Results
+
+dir = "../data/" + dset + "/data_sets/"    
 f = open(dir + "/" + str(num_epochs) + "_results.txt", 'w')
 f.write("Mean Accuracy: " + str(np.mean(net_best_accuracy)) + " (" + str(np.std(net_best_accuracy)) + ")\n")
 f.write(str(net_best_accuracy) + "\n")
@@ -131,7 +133,7 @@ f.write(str(net_best_recall) + "\n")
 f.write("\nMean F-score: " + str(np.mean(net_best_f_score)) + " (" + str(np.std(net_best_f_score)) + ")\n")
 f.write(str(net_best_f_score) + "\n")
        
-for i in range(0,100):
+for i in range(0,args.sets * args.splits):
     f.write("\nPredictions for " + str(i) + "\n")
     f.write("\n" + str(np.array(net_best_predictions[i]).reshape(1,-1)) + "\n")
     f.write("\n" + str(np.array(net_best_probs[i]).reshape(1, -1)) + "\n")
