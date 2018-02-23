@@ -6,8 +6,7 @@ from network import ReLU
 from math import ceil, floor, sqrt
 from sklearn.metrics import precision_score, recall_score, roc_auc_score, f1_score
 from fractions import gcd
-from load_data import load_data_from_file
-from save_network import save_network
+from popphy_io import load_data_from_file, save_network
 import numpy as np
 from theano.tensor import tanh
 
