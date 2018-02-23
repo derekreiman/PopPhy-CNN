@@ -71,7 +71,7 @@ class Network(object):
     def SGD(self, training_data, epochs, mini_batch_size, eta,
             validation_data, test_data, lmbda=0.0):
 			
-        #Train the network using mini-batch stochastic gradient descent
+        """Train the network using mini-batch stochastic gradient descent."""
         training_x, training_y = training_data
         validation_x, validation_y = validation_data
         test_x, test_y = test_data
@@ -143,6 +143,13 @@ class Network(object):
                 training_x[i*self.mini_batch_size: (i+1)*self.mini_batch_size]
             })
 
+        self.get_test_class = theano.function([i], test_y[i]) 
+        self.get_prob = theano.function(
+            [i], self.layers[-1].output,
+            givens = {
+                self.x:
+                test_x[i*self.mini_batch_size: (i+1)*self.mini_batch_size]                            
+            })
         # Do the actual training
         best_validation_accuracy = 0.0
         best_iteration = 0
@@ -213,7 +220,6 @@ class Network(object):
         
 #### Define layer types
 class ConvPoolLayer(object):
-
     def __init__(self, filter_shape, image_shape, poolsize=(2, 2),
                  activation_fn=ReLU):
         
@@ -221,7 +227,6 @@ class ConvPoolLayer(object):
         self.image_shape = image_shape
         self.poolsize = poolsize
         self.activation_fn=activation_fn
-		
         # initialize weights and biases
         n_out = (filter_shape[0]*np.prod(filter_shape[2:])/np.prod(poolsize))
         self.w = theano.shared(
@@ -235,7 +240,6 @@ class ConvPoolLayer(object):
                 dtype=theano.config.floatX),
             borrow=True)
         self.params = [self.w, self.b]
-		
     def set_inpt(self, inpt, inpt_dropout, mini_batch_size):
         self.inpt = inpt.reshape(self.image_shape)
         self.conv_out = theano.tensor.nnet.conv2d(
@@ -247,13 +251,11 @@ class ConvPoolLayer(object):
         self.output_dropout = self.output # no dropout in the convolutional layers
 
 class FullyConnectedLayer(object):
-
     def __init__(self, n_in, n_out, activation_fn=ReLU, p_dropout=0.0):
         self.n_in = n_in
         self.n_out = n_out
         self.activation_fn = activation_fn
         self.p_dropout = p_dropout
-		
         # Initialize weights and biases
         self.w = theano.shared(
             np.asarray(
@@ -266,7 +268,6 @@ class FullyConnectedLayer(object):
                        dtype=theano.config.floatX),
             name='b', borrow=True)
         self.params = [self.w, self.b]
-		
     def set_inpt(self, inpt, inpt_dropout, mini_batch_size):
         self.inpt = inpt.reshape((mini_batch_size, self.n_in))
         self.output = self.activation_fn(
@@ -276,18 +277,15 @@ class FullyConnectedLayer(object):
             inpt_dropout.reshape((mini_batch_size, self.n_in)), self.p_dropout)
         self.output_dropout = self.activation_fn(
             T.dot(self.inpt_dropout, self.w) + self.b)
-			
     def accuracy(self, y):
         "Return the accuracy for the mini-batch."
         return T.mean(T.eq(y, self.y_out))
 
 class SoftmaxLayer(object):
-
     def __init__(self, n_in, n_out, p_dropout=0.0):
         self.n_in = n_in
         self.n_out = n_out
         self.p_dropout = p_dropout
-		
         # Initialize weights and biases
         self.w = theano.shared(
             np.zeros((n_in, n_out), dtype=theano.config.floatX),
@@ -296,7 +294,6 @@ class SoftmaxLayer(object):
             np.zeros((n_out,), dtype=theano.config.floatX),
             name='b', borrow=True)
         self.params = [self.w, self.b]
-		
     def set_inpt(self, inpt, inpt_dropout, mini_batch_size):
         self.inpt = inpt.reshape((mini_batch_size, self.n_in))
         self.velocity = (1-self.p_dropout)*T.dot(self.inpt, self.w)
@@ -305,11 +302,9 @@ class SoftmaxLayer(object):
         self.inpt_dropout = dropout_layer(
             inpt_dropout.reshape((mini_batch_size, self.n_in)), self.p_dropout)
         self.output_dropout = softmax(T.dot(self.inpt_dropout, self.w) + self.b)
-		
     def cost(self, net):
         "Return the log-likelihood cost."
         return -T.mean((T.log(self.output_dropout) * net.c_probs)[T.arange(net.y.shape[0]), net.y])
-		
     def accuracy(self, y):
         "Return the accuracy for the mini-batch."
         return T.mean(T.eq(y, self.y_out))
