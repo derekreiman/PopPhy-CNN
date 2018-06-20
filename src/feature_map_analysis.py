@@ -1,29 +1,50 @@
 import sys
 import pandas as pd
 import numpy as np
-from load_network import load_network
-from load_data import load_data_from_file
+import argparse
+from popphy_io import load_network, load_data_from_file
 from theano.tensor.nnet import conv2d
 from graph import Graph, Node
 from parse_result import parse_result
-dset = sys.argv[1]
 
-acc_list, roc_list, prec_list, recall_list, f1_list, tpr_list, fpr_list, thresh_list = parse_result(dset, "cnn_2D")
-max_rocs = np.argsort(roc_list)[::-1]
+parser = argparse.ArgumentParser(description="PopPhy-CNN Feature Extraction")
+parser.add_argument("-n", "--splits", default=10, type=int, help="Number of cross validated splits.")
+parser.add_argument("-s", "--sets", default=10, type=int, help="Number of datasets")
+parser.add_argument("-d", "--dataset", default="Cirrhosis",     help="Name of dataset in data folder.")
+parser.add_argument("-m", "--method", default="CV", help="CV or holdout.")
+args = parser.parse_args()
 
+dset = args.dataset
+method = args.method
+
+if method == "CV":
+    prefix = "CV_"
+    num_splits = int(args.splits)
+
+if method == "holdout" or args.method == "HO":
+    prefix = "HO_"
+    num_splits=1
+
+num_sets = int(args.sets)
 
 #Get reference graph            
 g = Graph()
 g.build_graph("../data/" + dset + "/newick.txt")
 ref = g.get_ref()
+
 ref_val = np.zeros((ref.shape[0], ref.shape[1]))
 num_nodes = g.get_node_count()
+
 rankings = {}
 scores = {}
 node_names = g.get_dictionary()
 
 fp = open("../data/" + dset +"/label_reference.txt", 'r')
 labels = fp.readline().split("['")[1].split("']")[0].split("' '")
+fp.close()
+
+fp = open("../data/" + dset +"/otu.csv", 'r')
+otus = fp.readline().split(",")
 fp.close()
 
 for i in range(0, len(labels)):
@@ -34,18 +55,19 @@ for i in range(0, len(labels)):
             scores[i][j] = []
 
 
-for roc in range(0,100):
-	roc_index = max_rocs[roc]
-        set = str(roc_index / 10)
-        cv = str(roc_index % 10)
-
-	net = load_network("../data/" + dset + "/data_sets/raw_noscale/CV_" + set + "/" + cv)
-	train, test, validation = load_data_from_file(dset, "raw_noscale", "CV_" + set, cv)
+for roc in range(0,num_sets * num_splits):
+        set = str(roc / num_splits)
+        cv = str(roc % num_splits)
+	if method=="CV":
+		net = load_network("../data/" + dset + "/data_sets/" + prefix + set + "/" + cv)
+	if method=="HO" or method=="holdout":
+		net = load_network("../data/" + dset + "/data_sets/" + prefix + set + "/" + cv)
+	train, test, validation = load_data_from_file(dset, "CV", set, cv)
 
 	num_classes = net.layers[-1].w.eval().shape[1]
 	num_train = train[1].eval().shape[0]
 	num_test = test[1].eval().shape[0]
-	num_samp = num_test
+	num_samp = num_train
 	w = net.layers[0].w.eval()
 	num_maps = w.shape[1]
 	w_row = w.shape[2]
@@ -73,10 +95,8 @@ for roc in range(0,100):
 	fm_rows = fm[0][0].shape[2]
 	fm_cols = fm[0][0].shape[3]
 
-	num_max = num_nodes
-	thresh = 0.5
-	thresh_2 = 0.6
-	thresh_3 = 0.7
+	theta1 = 0.3 #0.5	0.69
+	theta2 = 0.3 #0\0.8
 
 	#Get the top X max indices for each class and each feature map
 	max_list = np.zeros((num_classes, num_maps, fm_rows * fm_cols))
@@ -85,17 +105,16 @@ for roc in range(0,100):
 	    for j in range(0, len(fm[i])):
 		for k in range(0, num_maps):
 		    maximums = np.argsort(fm[i][j][0][k].flatten())[::-1]
-		    for l in range(0, num_max):
+		    for l in range(0, int(round(theta1 * num_nodes))):
 		        max_list[i][k][maximums[l]] += 1
 
 
-	d = {"OTU":[],"Max Score":[], "Cumulative Score":[]}
+	d = {"OTU":otus,"Max Score":np.zeros(len(otus)), "Cumulative Score":np.zeros(len(otus))}
 	df = pd.DataFrame(data = d)
 	results = {}
 
 	for i in range(0, num_classes):
 	    results[i] = df.set_index("OTU")
-	    
 	#For each class
 	for i in range(0, num_classes):
 	    
@@ -113,7 +132,7 @@ for roc in range(0,100):
 		    
 		    #Find the row and column location and isolate reference window
 		    loc = loc_list[k]    
-		    if max_list[i][j][loc] > (len(fm[i]) * 0):
+		    if max_list[i][j][loc] > int(round(len(fm[i]) * theta2)):
 		        row = loc / fm_cols
 		        col = loc % fm_cols
 		        ref_window = ref[row:row + w_row, col:col + w_col]                
@@ -142,59 +161,6 @@ for roc in range(0,100):
 		                        else:
 		                            results[i].loc[ref_window[m,n], "Max Score"] = count[m,n]    
 		                            results[i].loc[ref_window[m,n], "Cumulative Score"] = count[m,n]    
-		                
-		                elif count[m,n] > thresh_2/2:
-		                    for r in range((m*w_col) + n + 1, w_row * w_col):
-		                        if count[m,n] + count.flatten()[r] > thresh_2 and count.flatten()[r] < thresh and count.flatten()[r] > thresh_2/2:
-		                            
-		                            val = count[m,n] + count.flatten()[r]
-		                            r_row = r / w_col
-		                            r_col = r % w_col
-		                            pair = ref_window[m,n] + "-" + ref_window[r_row, r_col]
-
-		                            if pair in results[i].index:
-		                                if val > results[i].loc[pair, "Max Score"]:
-		                                    results[i].loc[pair, "Max Score"] = val
-		                                results[i].loc[pair, "Cumulative Score"] += val
-		                            else:
-		                                results[i].loc[pair, "Max Score"] = val
-		                                results[i].loc[pair, "Cumulative Score"] = val
-		                        
-
-		                elif count[m,n] > thresh_3/3:
-		                    for r in range((m*w_col) + n + 1, w_row * w_col):
-		                        for s in range(r + 1, w_row * w_col):
-		                            if count[m,n] + count.flatten()[r] + count.flatten()[s] > thresh_3 and count.flatten()[r] < thresh_2/2 and count.flatten()[r] > thresh_3/3 and count.flatten()[s] < thresh_2/2 and count.flatten()[s] > thresh_3/3:
-
-		                                val = count[m,n] + count.flatten()[r] + count.flatten()[s]
-		                                r_row = r / w_col
-		                                r_col = r % w_col
-		                                s_row = s / w_col
-		                                s_col = s % w_col
-		                                pair = ref_window[m,n] + "-" + ref_window[r_row, r_col] + "-" + ref_windos[s_row, s_col]
-
-		                                if pair in results[i].index:
-		                                    if val > results[i].loc[pair, "Max Score"]:
-		                                        results[i].loc[pair, "Max Score"] = val
-		                                    results[i].loc[pair, "Cumulative Score"] += val
-		                                else:
-		                                    results[i].loc[pair, "Max Score"] = val
-		                                    results[i].loc[pair, "Cumulative Score"] = val
-
-        
-	for i in range(0, num_classes):
-	    unique = []
-	    for feat in results[i].index:
-		for sub in feat.split("-"):
-		    if sub not in unique:
-		        unique.append(sub)
-	    for j in range(0, num_classes):
-		if i != j:
-		    index = results[j].index
-		    for feat in index:
-		        for sub in feat.split("-"):
-		            if sub in unique:
-		                unique.remove(sub)
 
 	diff = {}
 
@@ -218,57 +184,6 @@ for roc in range(0,100):
 	        else:
                     rankings[i][j].append(rank.shape[0] + 1)
                     scores[i][j].append(0)
-
-  
-	features = {}
-	graphs = {}
-	for i in range(0, num_classes):
-	    features[i] = results[i].index
-	    graphs[i] = Graph()
-
-	    current_layer = g.layers
-	    assigned_layer = False
-	    layer_nodes = []
-
-	    while current_layer >= 0:
-		node_list = g.get_nodes(current_layer)
-	    
-		for node in layer_nodes:
-		    if node.get_parent != None:
-		        parent = g.get_node_by_name(node.get_id()).get_parent()
-		        parent_id = parent.get_id()
-		        if graphs[i].get_node_by_name(parent_id) == None:
-		            new_node = Node(parent_id)
-		            new_node.layer = parent.layer
-		        else:
-		            new_node = graphs[i].get_node_by_name(parent_id)
-		        node.set_parent(new_node)
-		        new_node.add_child(node)
-		        graphs[i].add_node(new_node.layer, new_node)
-		        if parent_id in features[i]:
-		            index = features[i].get_loc(parent_id)
-		            features[i] = features[i].delete(index)
-		
-	    
-		for node in node_list:
-		    if node.get_id() in features[i]:
-		        new_node = Node(node.get_id())
-		        new_node.layer = current_layer
-		        if assigned_layer == False:
-		            graphs[i].layers = current_layer
-		            assigned_layer = True
-		        graphs[i].add_node(current_layer, new_node)
-		        index = features[i].get_loc(node.get_id())
-		        features[i] = features[i].delete(index)
-		layer_nodes = graphs[i].get_nodes(current_layer)
-		current_layer -= 1
-	    
-	    
-
-
-	#for i in range(0, num_classes):    
-	    #graphs[i].write_table("../data/" + dset + "/" + labels[i] + "-" + set +"-" + cv + "_graph.out")
-	    #results[i].to_csv("../data/" + dset + "/" + labels[i] + "-" + set +"-" + cv + "_results.out")
 
 medians = {}
 

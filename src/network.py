@@ -52,7 +52,6 @@ class Network(object):
         self.best_state = []
         self.best_prob = []
         self.c_probs = c_probs
-       
 	self.layers = layers
 	self.mini_batch_size = mini_batch_size 
         self.params = [param for layer in self.layers for param in layer.params]
@@ -69,13 +68,12 @@ class Network(object):
         self.feature_maps = self.layers[1].conv_out
 		
     def SGD(self, training_data, epochs, mini_batch_size, eta,
-            validation_data, test_data, lmbda=0.0):
+            validation_data, test_data, lmbda=0.0, patience=-1):
 			
         """Train the network using mini-batch stochastic gradient descent."""
         training_x, training_y = training_data
         validation_x, validation_y = validation_data
         test_x, test_y = test_data
-		
         # compute number of minibatches for training, validation and testing
         num_training_batches = size(training_data)/mini_batch_size
         num_validation_batches = size(validation_data)/mini_batch_size
@@ -99,6 +97,14 @@ class Network(object):
                 training_x[i*self.mini_batch_size: (i+1)*self.mini_batch_size],
                 self.y:
                 training_y[i*self.mini_batch_size: (i+1)*self.mini_batch_size]
+            })
+        validate_mb = theano.function(
+            [i], cost,
+            givens={
+                self.x:
+                validation_x[i*self.mini_batch_size: (i+1)*self.mini_batch_size],
+                self.y:
+                validation_y[i*self.mini_batch_size: (i+1)*self.mini_batch_size]
             })
         train_mb_accuracy = theano.function(
             [i], self.layers[-1].accuracy(self.y),
@@ -144,16 +150,27 @@ class Network(object):
             })
 
         self.get_test_class = theano.function([i], test_y[i]) 
-        self.get_prob = theano.function(
+        self.get_test_prob = theano.function(
             [i], self.layers[-1].output,
             givens = {
                 self.x:
                 test_x[i*self.mini_batch_size: (i+1)*self.mini_batch_size]                            
             })
+
+        self.get_validate_prob = theano.function(
+            [i], self.layers[-1].output,
+            givens = {
+                self.x:
+                validation_x[i*self.mini_batch_size: (i+1)*self.mini_batch_size]
+            })
+    
         # Do the actual training
         best_validation_accuracy = 0.0
         best_iteration = 0
+        best_validation_auc = 0.0
         test_accuracy = 0
+        best_cost = 1000
+        patience_count = int(patience)
         for epoch in xrange(epochs):
             batch_order = range(num_training_batches)
             shuffle(batch_order)
@@ -173,33 +190,59 @@ class Network(object):
                         epoch, validation_accuracy))
                     
                     best_iteration = iteration
-                        
+                    validation_cost = np.mean([validate_mb(j) for j in xrange(num_validation_batches)])
+    
                     print("Getting Predictions...")
                     probs = []
-                    for p in xrange(num_test_batches):
-                        probs.append(self.get_prob(p))
+                    for p in xrange(num_validation_batches):
+                        probs.append(self.get_validate_prob(p))
                     probs = np.array(probs).reshape(-1,2)
                     probs = [row[1] for row in probs]
                         
                     print("Getting Probabilities...")
                     pred = []
-                    for p in xrange(num_test_batches):
-                        pred.append(self.test_mb_predictions(p))
+                    for p in xrange(num_validation_batches):
+                        pred.append(self.validate_mb_predictions(p))
                     pred = np.array(pred).reshape(-1,1)
 
-                    true_labels = test_y.eval()
-                    auc = roc_auc_score(true_labels, probs)
-                    print("Current AUC is " + str(auc))
-		    print("Best AUC is " + str(self.best_auc_roc))
+                    true_labels = validation_y.eval()
+                    validation_auc = roc_auc_score(true_labels, probs)
+                    print("Current Validation loss is " + str(validation_cost))
+                    print("Current Validation AUC is " + str(validation_auc))
+		    print("Best Test AUC is " + str(self.best_auc_roc))
 		    print(true_labels)
                     print(np.array(pred).reshape(-1))
                     print(probs)
-                    if auc >= self.best_auc_roc:
+                    if (validation_auc >= best_validation_auc) or (validation_cost <= best_cost):
+                        if validation_auc > best_validation_auc:
+                            best_validation_auc = validation_auc
+                        if validation_cost < best_cost:
+                            best_cost = validation_cost
+
+                        true_labels = test_y.eval()
+                        test_accuracy = np.mean([test_mb_accuracy(j) for j in xrange(num_validation_batches)])
+
+                        probs = []
+                        for p in xrange(num_test_batches):
+                            probs.append(self.get_test_prob(p))
+                        probs = np.array(probs).reshape(-1,2)
+                        probs = [row[1] for row in probs]
+
+                        print("Getting Probabilities...")
+                        pred = []
+                        for p in xrange(num_test_batches):
+                            pred.append(self.test_mb_predictions(p))
+                        pred = np.array(pred).reshape(-1,1)
+                        true_labels = test_y.eval()
+                        auc = roc_auc_score(true_labels, probs)
                         precision = precision_score(true_labels, pred, average='weighted')
                         recall = recall_score(true_labels, pred, average='weighted')
-                        if auc > self.best_auc_roc or (precision > self.best_precision and recall > self.best_recall): 
+                        patience_count = int(patience)
+                        
+                        if auc > self.best_auc_roc or (auc == self.best_auc_roc and precision > self.best_precision and recall > self.best_recall): 
                             print("Updating parameters...")
-                            self.best_accuracy = validation_accuracy
+
+                            self.best_accuracy = test_accuracy
                             self.best_auc_roc = auc
                             self.best_precision = precision
                             self.best_recall = recall
@@ -208,15 +251,18 @@ class Network(object):
                             self.best_prob = probs
                             self.best_state = None
                             self.best_state = copy.copy(self)
-                     
                             
-                            print('ROC: ' + str(self.best_auc_roc))
-                            print('Precision: ' + str(self.best_precision))
-                            print('Recall: ' + str(self.best_recall))
-                                
+                            print('Test ROC: ' + str(self.best_auc_roc))
+                            print('Test Precision: ' + str(self.best_precision))
+                            print('Test Recall: ' + str(self.best_recall))
+                    else:
+                        patience_count = patience_count - 1
+            if patience_count == 0 or self.best_auc_roc == 1.0:
+                print("Early stopping at " + str(epoch))
+                break;          
         print("Finished training network.")
-        print("Best validation AUC of {0:.2%}".format(self.best_auc_roc))
-        print("Corresponding test accuracy of {0:.2%}".format(test_accuracy))
+        print("Best Test AUC of {0:.4}".format(self.best_auc_roc))
+        print("Corresponding test accuracy of {0:.4%}".format(self.best_accuracy))
         
 #### Define layer types
 class ConvPoolLayer(object):

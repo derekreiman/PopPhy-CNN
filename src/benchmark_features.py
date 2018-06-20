@@ -7,11 +7,17 @@ from sklearn.metrics import precision_score, recall_score, roc_auc_score, f1_sco
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 import warnings
 
+import argparse
+
+parser = argparse.ArgumentParser(description="PopPhy-CNN Training")
+parser.add_argument("-d", "--dataset", default="Cirrhosis",     help="Name of dataset in data folder.")
+args = parser.parse_args()
+
+dset = args.dataset
 
 if __name__ == "__main__":
 
 	warnings.filterwarnings("ignore")
-	dset = sys.argv[1]
 
 	fp = open("../data/" + dset +"/label_reference.txt", 'r')
 	labels = fp.readline().split("['")[1].split("']")[0].split("' '")
@@ -38,6 +44,10 @@ if __name__ == "__main__":
 	fp = pd.read_csv("../data/" + dset + "/rf_features.txt", header=None, sep="\t")
 	rf_features = np.array(fp[[0]]).reshape(len(col))
 
+        fp = pd.read_csv("../data/" + dset + "/wilcox.csv", header=0, sep=",")
+        wilcox_features = np.array(fp["OTU"]).reshape(len(col))
+
+
 	fp = pd.read_csv("../data/" + dset + "/tree_scores.out", sep="\t")
 	fp[['Score']] = fp[['Score']].apply(pd.to_numeric).apply(np.abs)
 	rankings = fp.sort_values(by=(['Score']), ascending=False)
@@ -45,10 +55,10 @@ if __name__ == "__main__":
 	fp = open("../data/" + dset + "/features_svm.txt", "w")
 
 	auc_list = {}
-	for feat in range(1,51):
+	for feat in range(1,26, 4):
 		fp.write(str(feat) + ",")
 		num_features = feat
-		for i in range(5):
+		for i in range(0,6):
 			svm_roc_auc = []
 
 			if i == 0 or i == 1:
@@ -83,6 +93,16 @@ if __name__ == "__main__":
 					if rankings.iloc[n]['Node'] in df.columns:
 						features.append(rankings.iloc[n]['Node'])
 					n += 1
+			elif i == 5:
+				print("Wilcox")
+				features = []
+				n = 0
+				while len(features) < num_features:
+					features.append(wilcox_features[n])
+					n += 1
+
+
+
 			print(features)
 			x = df[features]
 			x = (x-x.min())/(x.max() - x.min())
@@ -97,7 +117,7 @@ if __name__ == "__main__":
 			print("Running....")
 			for j in range(10):
 				count = 0
-				k_fold = StratifiedKFold(n_splits=10, shuffle=True)
+				k_fold = StratifiedKFold(n_splits=10, shuffle=True, random_state=j)
 				for train, test in k_fold.split(x, y[0]):
 					clf = GridSearchCV(SVC(C=1, probability=True), param_grid=cv_grid, cv=5, n_jobs=-1, scoring="accuracy")
 					clf.fit(x.loc[train].values, y.loc[train].values.flatten().astype('int'))

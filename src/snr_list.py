@@ -3,8 +3,13 @@ import numpy as np
 import os
 import sys
 import struct
+import argparse
 
-data = sys.argv[1]
+parser = argparse.ArgumentParser(description="PopPhy-CNN Training")
+parser.add_argument("-d", "--dataset", default="Cirrhosis",     help="Name of dataset in data folder.")
+args = parser.parse_args()
+
+data = args.dataset
 
 fi = {}
 fp = open("../data/" + str(data) + "/otu.csv", 'r')

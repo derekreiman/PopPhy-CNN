@@ -1,8 +1,13 @@
 from graph import Graph
 import sys
 import numpy as np
+import argparse
 
-dset = sys.argv[1]
+parser = argparse.ArgumentParser(description="PopPhy-CNN Training")
+parser.add_argument("-d", "--dataset", default="Cirrhosis",     help="Name of dataset in data folder.")
+args = parser.parse_args()
+
+dset = args.dataset
 
 g = Graph()
 g.build_graph("../data/" + dset + "/newick.txt")

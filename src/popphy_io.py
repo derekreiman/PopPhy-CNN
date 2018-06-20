@@ -1,9 +1,12 @@
 import cPickle
 import os
 
-def load_data_from_file(dset, method, split):
-    
-    dir = "../data/" + dset + "/data_sets/" + method + "/" + split
+def load_data_from_file(dset, method, set, split):
+   
+    if method == "CV": 
+        dir = "../data/" + dset + "/data_sets/" + method + "_" + set + "/" + split
+    if method == "HO" or method == "holdout":
+        dir = "../data/" + dset + "/data_sets/" + method + "_" + set
     
     f = open(dir+"/training.save", 'rb')
     train = cPickle.load(f)

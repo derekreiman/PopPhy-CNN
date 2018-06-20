@@ -1,6 +1,7 @@
 import numpy as np
 import untangle
 import xmltodict
+import random
 
 class Node:
     
@@ -53,7 +54,19 @@ class Node:
         for c in self.children:
             calc += c.abundance
         self.abundance = calc
-          
+
+    def get_leaves(self):
+        calc = 0
+        c = self.children
+        while len(c) != 0:
+            n = c.pop()
+            if len(n.get_children()) == 0:
+                calc = calc + 1
+            else:
+                for child in n.get_children(): 
+                    c.append(child)
+        return calc
+ 
 class Graph:       
     def __init__(self):
         self.nodes = [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}]
@@ -139,7 +152,8 @@ class Graph:
                             current_node.set_layer(layer)
                             num_c += 1
                     layer = layer -1
-	
+        self.width = sum([s.get_leaves() for s in self.get_nodes(0)])	
+
     def print_graph(self):
 	c = 0
         for i in range(0, self.layers+1):
@@ -152,13 +166,7 @@ class Graph:
         layer = self.layers
 	tracker = {}
 	for f in lab:
-	  tracker[f] = False
-        width = 0
-        for i in range(0,layer):
-            w = len(self.get_nodes(i))
-            if w > width:
-                width = w        
-        self.width = width      
+	    tracker[f] = False
 	while layer >= 0:
             for n in self.get_nodes(layer):
                 if len(n.get_children()) > 0:
@@ -176,19 +184,62 @@ class Graph:
 			    tracker[str(lab[i])] = True
                             n.set_abundance(x[i])
 	    layer = layer - 1   
-    def get_map(self):
+ 
+    def get_map(self, permute=-1):
         m = np.zeros(((self.layers), self.width))
-        current = self.get_nodes(0)
+        current = self.get_nodes(1)
+        if permute >= 0:
+            print("Permuting Tree...")
         for i in range(0, self.layers):
             j = 0
             temp = []
             for n in current:
                 m[i][j] = n.get_abundance()
+                if permute >= 0:
+                    np.random.seed(permute)
+                    np.random.shuffle(n.get_children())
                 temp = np.append(temp, n.get_children())
                 j = j+1
             current = temp          
+        return m        
+            
+    def get_sparse_map(self, permute=-1):
+        m = np.zeros(((self.layers), self.width))
+        nodes = list(self.get_nodes(1))
+        j = 0
+        if permute >= 0:
+            print("Permuting Tree...")
+        while len(nodes) > 0:
+            n = nodes.pop()
+            m[n.get_layer()-1][j] = n.get_abundance()
+            c = n.get_children()
+            if len(c) > 0:
+                for child in c:
+                    nodes.append(child)
+            else:
+                j = j + 1
+        return m             
+   
+    def get_contrast_map(self, permute=-1):
+        m = np.repeat(-1, self.layers * self.width).reshape(self.layers, self.width)
+        nodes = list(self.get_nodes(1))
+        j = 0
+        if permute >= 0:
+            print("Permuting Tree...")
+        while len(nodes) > 0:
+            n = nodes.pop()
+            m[n.get_layer()-1][j] = n.get_abundance()
+            c = n.get_children()
+            if len(c) > 0:
+                for child in c:
+                    nodes.append(child)
+            else:
+                j = j + 1
         return m
-      
+
+
+
+ 
     def get_ref(self):
         width = 0
         for i in range(0,self.layers):
@@ -197,7 +248,7 @@ class Graph:
                 width = w        
         self.width = width   
         m = np.zeros(((self.layers), self.width), dtype=object)
-        current = self.get_nodes(0)
+        current = self.get_nodes(1)
         for i in range(0, self.layers):
             j = 0
             temp = []
