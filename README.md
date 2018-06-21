@@ -11,6 +11,15 @@ PopPhy-CNN,a novel convolutional neural networks (CNN) learning architecture tha
 ### Prerequisites
   - Python 2.7.14
   - Libraries: `pip install theano numpy pandas joblib xmltodict untangle sklearn network`
+
+### Datasets
+Datasets are stored in respective folders under the data directory. Each dataset needs the following:
+  - count_matrix.csv 
+  - labels.txt             
+  - otu.csv                
+  - newick.txt             
+
+The file <b>count_matrix.csv</b> is a comma separated file representing the count table. Each row should represent a sample and each column should represent the abundance of an OTU. There should be no headers or index column in this file. The file <b>labels.txt</b> should contain the class labels with samples ordered in the same way as in count_matrix.csv. There should be one label per line. The file <b>otu.csv</b> should contain all the OTU features, ordered in the same way as the columns appear in count_matrix.csv. This should be represented as a single comma-separated list. The file <b>newick.txt</b> is the newick formatted text file for the phylogenetic taxonomic tree.
   
 ### To generate 10 times 10-fold cross validation sets for the Cirrhosis dataset:
 
