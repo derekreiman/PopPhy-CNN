@@ -12,12 +12,25 @@ PopPhy-CNN,a novel convolutional neural networks (CNN) learning architecture tha
   - Python 2.7.14
   - Libraries: `pip install theano numpy pandas joblib xmltodict untangle sklearn network`
   
-### To train the network on the *Cirrhosis* dataset
-Assuming that you are in the project's root dir.
+### To generate 10 times 10-fold cross validation sets for the Cirrhosis dataset:
+
 ```bash
-cd data/Cirrhosis/
-python ./parse_data.py
-cd ../../src/
-python ./prepare_data.py -r
-python ./train.py
+python prepare_data.py -d=Cirrhosis -m=CV -n=10 -s=10
 ``` 
+
+### To train PopPhy-CNN using the generated 10 times 10-fold cross validation Cirrhosis sets for 400 epochs with early stopping of 20 epochs:
+```bash
+python train.py -d=Cirrhosis -m=CV -n=10 -s=10 -e=400 -p=20
+```
+
+### To extract feature importance scores from the learned models:
+```bash
+python feature_map_analysis -d=Cirrhosis -m=CV -n=10 =s=10
+```
+
+### To generate files to use for Cytoscape visualization:
+```bash
+python generate_tree_scores.py -d=Cirrhosis
+```
+
+
