@@ -5,7 +5,6 @@ import argparse
 from popphy_io import load_network, load_data_from_file
 from theano.tensor.nnet import conv2d
 from graph import Graph, Node
-from parse_result import parse_result
 
 parser = argparse.ArgumentParser(description="PopPhy-CNN Feature Extraction")
 parser.add_argument("-n", "--splits", default=10, type=int, help="Number of cross validated splits.")
@@ -69,7 +68,7 @@ for roc in range(0,num_sets * num_splits):
 	num_test = test[1].eval().shape[0]
 	num_samp = num_train
 	w = net.layers[0].w.eval()
-	num_maps = w.shape[1]
+	num_maps = w.shape[0]
 	w_row = w.shape[2]
 	w_col = w.shape[3]
 
@@ -125,7 +124,7 @@ for roc in range(0,num_sets * num_splits):
 		loc_list = max_list[i][j].argsort()[::-1]    
 		
 		#Store kernel weights
-		w = np.rot90(np.rot90(net.layers[0].w.container.data[0][0]))
+		w = np.rot90(np.rot90(net.layers[0].w.container.data[j][0]))
 	    
 		#For the top X maximums...
 		for k in range(0, len(loc_list)):
